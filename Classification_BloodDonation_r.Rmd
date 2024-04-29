@@ -1,0 +1,149 @@
+---
+title: "Classification_blood_donation"
+author: "shalomlau"
+date: "2023-03-07"
+output:
+  word_document: default
+  html_document: default
+---
+
+
+#install and load necessary libraries
+install.packages("randomForest")
+install.packages("ggplot2")
+install.packages("lattice")
+library(rpart)
+library(randomForest)
+library(ggplot2)
+library(caret)
+library(readr)
+library(lattice)
+
+#set working directory to import dataset
+setwd("C:/Users/User/Documents/ST3189 Machine Learning/ST3189 coursework")
+
+#load data
+bd <- read.csv("blood_donation.csv.csv")
+
+#remove duplicates
+bd_nd <- unique(bd)
+
+# Set the random seed for reproducibility
+set.seed(123)
+
+# Split the data into a training set (70% of the data) and a testing set (30% of the data)
+train_indices <- sample(nrow(bd_nd), round(0.7 * nrow(bd_nd)))
+bd_train_data <- bd_nd[train_indices, ]
+bd_test_data <- bd_nd[-train_indices, ]
+
+#check class of bd train set
+class(bd_train_data$Class)
+
+
+#model the training set (CART)
+model <- rpart(Class ~ recency + frequency, data = bd_train_data)
+
+#print the summary of the model
+summary(model)
+
+#plot the tree
+par(mar = c(5, 5, 5, 5)) #set size of plot area
+windows(width=10, height=8)
+plot(model)
+text(model, use.n=TRUE, all=TRUE, cex=0.8)
+
+#use test set to evaluate performance
+pred <- predict(model, newdata = bd_test_data)
+
+#compare predicted value to actual value (havent finish)
+table(pred, bd_test_data$Class)  # confusion matrix
+accuracy <- sum(pred == bd_test_data$Class) / length(bd_test_data$Class)  # accuracy
+precision <- sum(pred & bd_test_data$Class) / sum(pred)  # precision
+recall <- sum(pred & bd_test_data$Class) / sum(bd_test_data$Class)  # recall
+f1_score <- 2 * precision * recall / (precision + recall)  # F1 score
+
+#Load the necessary libraries
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(caret)
+
+# Check if the target variable is binary
+if (length(unique(bd_nd$Class)) > 2) {
+  stop("Target variable is not binary")
+}
+
+# Replace 1 with 0 and 2 with 1 in the Class column
+bd$Class <- ifelse(bd$Class == 1, 0, 1)
+bd$Class <- ifelse(bd$Class == 2, 1, bd$Class)
+
+# Save the modified dataset
+write.csv(bd, "bd.csv", row.names = FALSE)
+
+# Set the random seed for reproducibility
+set.seed(123)
+
+# Split the data into a training set (70% of the data) and a testing set (30% of the data)
+train_indices <- sample(nrow(bd), round(0.7 * nrow(bd)))
+bd_train_data <- bd[train_indices, ]
+bd_test_data <- bd[-train_indices, ]
+
+# Perform logistic regression
+logistic_model <- glm(Class ~ recency + frequency, data = bd_train_data, family = "binomial")
+
+# Make predictions on the test data
+pred <- predict(logistic_model, newdata = bd_test_data, type = "response")
+predicted_class <- ifelse(pred >0.5, 1, 0)
+
+predicted_class <- factor(predicted_class)
+bd_test_data$Class <- factor(bd_test_data$Class)
+
+# Check the levels of both variables
+levels(predicted_class)
+levels(bd_test_data$Class)
+
+# Re-level the predicted variable to match the reference variable
+predicted_class <- factor(predicted_class, levels = levels(bd_test_data$Class))
+
+# Check the levels again to make sure they match
+levels(predicted_class)
+levels(bd_test_data$Class)
+
+#Evaluate the model
+confusion_matrix <- confusionMatrix(data = predicted_class, reference = bd_test_data$Class)
+
+#visualizing the confusion matrix
+mosaicplot(confusion_matrix$table, main = "Confusion Matrix")
+
+
+
+# randomForest--------------------------------------------------------------
+
+library(randomForest)
+
+# Set seed for reproducibility
+set.seed(123)
+
+bd <- read.csv("bd.csv")
+bd_nd <- na.omit(bd_nd)
+
+#Split the data into a training set (70% of the data) and a testing set (30% of the data)
+train_indices <- sample(nrow(bd), round(0.7 * nrow(bd)))
+bd_train_data <- bd_nd[train_indices, ]
+bd_test_data <- bd_nd[-train_indices, ]
+
+# Train random forest model
+bd_rf_model <- randomForest(Class ~ ., data = bd_train_data, ntree = 80, mtry = sqrt(ncol(bd_train_data)))
+
+# Make predictions on test data
+pred_bd <- predict(bd_rf_model, bd_test_data)
+
+# Evaluate accuracy of predictions
+accuracy <- mean(pred_bd == bd_test_data$Class)
+
+# Re-level the predicted variable to match the reference variable
+pred_bd <- factor(pred_bd, levels = levels(bd_test_data$Class))
+
+# response has 5 or fewer unique values, indicating that randomForest is not suitable to model this dataset-----
+
+
